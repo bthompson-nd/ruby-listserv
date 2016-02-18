@@ -14,15 +14,20 @@ class Listserv
   # Load a file by name
   def load(filename)
     @properties = Hash.new
+
+    # After an initial series of 11 characters, Listserv files consist of 100-character "lines"
+    # These lines do not have line terminator characters so we must split them directly based on a 100-character limit.
     offset = 11
     length = 100
     file = filename
 
+    # The first 'line' contains the plain title of the Listserv.
     @title = IO.read(file, length, offset += length, mode:'rb')
     @title = @title.strip[2..-1]
 
+    # Read the first section of the file. Settings come in the form of "* Key= Value"
     while line = IO.read(file, length, offset += length, mode: 'rb')
-      property = line.scan(/\* (\S+)= (.+)/)
+      property = line.scan(/\*\s{1,2}(\S+)= (.+)/)
       hash = property.to_h
       hash.each do |k, v|
         if @properties[k] == nil
@@ -37,6 +42,7 @@ class Listserv
       end
     end
 
+    # Read the members, 100-character lines are terminated by the eight-character sequence "////    "
     @members = Array.new
     while line = IO.read(file, length, offset += length, mode: 'rb')
       member_matches = line.scan(/(.{1,80})[\S]{12}\/\/\/\/    /)
@@ -66,7 +72,11 @@ class Listserv
 
   # Get the Listserv's password
   def pw
-    @properties['PW'][0]
+    if @properties['PW'].class == Array && @properties['PW'].size > 0
+      @properties['PW'][0]
+    else
+      nil
+    end
   end
 
   # Get the Listserv's owners in an array of email addresses
