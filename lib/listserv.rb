@@ -23,7 +23,11 @@ class Listserv
 
     # The first 'line' contains the plain title of the Listserv.
     @title = IO.read(file, length, offset += length, mode:'rb')
-    @title = @title.strip[2..-1]
+    begin
+      @title = @title.strip[2..-1]
+    rescue
+      @title = "{Could Not Parse Title}"
+    end
 
     # Read the first section of the file. Settings come in the form of "* Key= Value"
     while line = IO.read(file, length, offset += length, mode: 'rb')
@@ -46,7 +50,12 @@ class Listserv
     @members = Array.new
     while line = IO.read(file, length, offset += length, mode: 'rb')
       member_matches = line.scan(/(.{1,80})[\S]{12}\/\/\/\/    /)
-      if member_matches.flatten!.count > 0
+      begin
+        member_match_count = member_matches.flatten!.count
+      rescue
+        member_match_count = 0
+      end
+      if member_match_count > 0
         member_matches.each do |m|
           @members.push m.strip
         end
@@ -98,16 +107,20 @@ class Listserv
   private
 
   def get_emails(matches)
-    matches.flatten! #Flattens the match array in case the original contained any arrays (it probably didn't)
-    matches.map! {|m| m.split(',')} #Split any elements of the match array if they are comma-delimited
-    matches.flatten! #Flatten the split comma-delimited elements back down so this is a 1-D array again
     output = [] #The output variable
-    matches.each do |match|
-      #Find any email addresses in a match
-      emails = match.downcase.scan(/[a-z'0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,5}/)
-      emails.each do |email|
-        output.push email #Put those email addresses into the output variable
+    begin
+      matches.flatten! #Flattens the match array in case the original contained any arrays (it probably didn't)
+      matches.map! {|m| m.split(',')} #Split any elements of the match array if they are comma-delimited
+      matches.flatten! #Flatten the split comma-delimited elements back down so this is a 1-D array again
+      matches.each do |match|
+        #Find any email addresses in a match
+        emails = match.downcase.scan(/[a-z'0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,5}/)
+        emails.each do |email|
+          output.push email #Put those email addresses into the output variable
+        end
       end
+    rescue
+      #You were probably passed an empty block of matches
     end
     return output #Return a flat array of email addresses.
   end
